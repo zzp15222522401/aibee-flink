@@ -1,7 +1,6 @@
 package com.aibee.flink.cdc;
 //import com.ververica.cdc.connectors.mysql.MySqlSource;
 
-import com.aibee.flink.cdc.MyPartitioner;
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
@@ -45,18 +44,6 @@ public class FlinkCDC {
         String password = "123456";
         String databases = "store_bi_system";
         String tables = "store_bi_system.score,store_bi_system.common_domain";
-        //测试库
-//        String hostname = "data-db01.aibee.cn";
-//        String user = "openfaasdb_user";
-//        String password = "5apj5R7s$y75S8z3";
-//        String databases = "store_bi_system";
-//        String tables = "store_bi_system.common_daily_action_index_copy1";
-        //volvo
-//        String hostname = "rm-bp13896493j23216y.mysql.rds.aliyuncs.com";
-//        String user = "store_volvo_cc";
-//        String password = "lEMRxpjrym55BviJ";
-//        String databases = "store_bi_volvo";
-//        String tables = "store_bi_volvo.lx_test";
 
 
         MySqlSource<String> mysqlSource = MySqlSource.<String>builder()
@@ -68,8 +55,6 @@ public class FlinkCDC {
                 //可选配置项,注意：指定的时候需要使用"db.table"的方式
                 .tableList(tables)
                 .startupOptions(StartupOptions.latest())
-//                .deserializer(new Flink_CDCWithCustomerSchema())
-//                .deserializer(new StringDebeziumDeserializationSchema())
                 .deserializer(new JsonDebeziumDeserializationSchema())
                 .build();
 
