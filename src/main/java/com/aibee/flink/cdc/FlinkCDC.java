@@ -60,9 +60,9 @@ public class FlinkCDC {
 
 
         DataStreamSource<String> mysqlDS = env.fromSource(mysqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source");
-//        Properties properties = new Properties();
-//        properties.setProperty("bootstrap.servers","172.24.6.129:9092,172.24.6.130:9092,172.24.6.131:9092");
-//        mysqlDS.addSink(new FlinkKafkaProducer<String>("flink-metric-log",new SimpleStringSchema(), properties,java.util.Optional.of(new MyPartitioner()))).name("flinkinsertkafka");
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers","172.24.6.129:9092,172.24.6.130:9092,172.24.6.131:9092");
+        mysqlDS.addSink(new FlinkKafkaProducer<String>("flink-metric-log",new SimpleStringSchema(), properties,java.util.Optional.of(new MyPartitioner()))).name("flinkinsertkafka");
 
 
         mysqlDS.print();
