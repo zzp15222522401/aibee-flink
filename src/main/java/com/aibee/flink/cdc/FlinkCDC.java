@@ -7,6 +7,7 @@ import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -20,7 +21,22 @@ import java.util.Properties;
 public class FlinkCDC {
 
     public static void main(String[] args) throws Exception {
+        ParameterTool parameterTool = ParameterTool.fromArgs(args);
+        //mysql链接
+        String hostname = parameterTool.get("hostname");
+        String user =  parameterTool.get("user");
+        String password =  parameterTool.get("password");
+        String databases =  parameterTool.get("databases");
+        String tables =  parameterTool.get("tables","mall_bi_test.arrival_info_20210101,mall_bi_test.arrival_info_20210308_bak,mall_bi_test.arrival_info_20210101_bak");
+        int port =  parameterTool.getInt("port");
 
+        //kafka链接
+        String bootstrap =  parameterTool.get("bootstrap");
+        String topicid =  parameterTool.get("topicid");
+        //是否添加Schema
+        boolean ifschema = parameterTool.getBoolean("ifschema",false) ;
+        //启动模式
+        StartupOptions startupOptions = parameterTool.get("startupOptions","latest").equals("initial") ?  StartupOptions.initial() : StartupOptions.latest();
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -38,24 +54,18 @@ public class FlinkCDC {
         String checkpointDir ="file:///tmp/flink/checkpoints";
         env.setStateBackend(new FsStateBackend(checkpointDir));
 
-        //my
-        String hostname = "172.16.244.60";
-        String user = "root";
-        String password = "123456";
-        String databases = "store_bi_system";
-        String tables = "store_bi_system.score,store_bi_system.common_domain";
 
 
         MySqlSource<String> mysqlSource = MySqlSource.<String>builder()
                 .hostname(hostname)
-                .port(3306)
+                .port(port)
                 .username(user)
                 .password(password)
                 .databaseList(databases)
                 //可选配置项,注意：指定的时候需要使用"db.table"的方式
-                .tableList()
-                .startupOptions(StartupOptions.latest())
-                .deserializer(new JsonDebeziumDeserializationSchema())
+                .tableList(tables)
+                .startupOptions(startupOptions)
+                .deserializer(new JsonDebeziumDeserializationSchema(ifschema))
                 .build();
 
 
