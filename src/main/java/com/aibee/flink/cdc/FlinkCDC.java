@@ -34,10 +34,10 @@ public class FlinkCDC {
         String bootstrap =  parameterTool.get("bootstrap");
         String topicid =  parameterTool.get("topicid");
         //是否添加Schema
-        boolean ifschema = parameterTool.getBoolean("ifschema",false) ;
+        boolean ifschema = parameterTool.getBoolean("hiveschema",false) ;
         //启动模式
         StartupOptions startupOptions = parameterTool.get("startupOptions","latest").equals("initial") ?  StartupOptions.initial() : StartupOptions.latest();
-
+        //保存检查点个数
         Configuration configuration = new Configuration();
         configuration.setInteger("state.checkpoints.num-retained",3);
         //创建环境
