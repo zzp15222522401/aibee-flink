@@ -60,7 +60,7 @@ public class FlinkCDC {
 
         //设置状态后端
         String checkpointDir ="file:///tmp/flink/checkpoints";
-        env.setStateBackend(new FsStateBackend(checkpointDir));
+//        env.setStateBackend(new FsStateBackend(checkpointDir));
 
 
 
@@ -106,8 +106,8 @@ public class FlinkCDC {
 
         //Hostname校验改成空。
         props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, "");
-//        props.put("sasl.jaas.config",
-//                "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"adminidsp\" password=\"Adminidsp123\";");
+        props.put("sasl.jaas.config",
+                "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"adminidsp\" password=\"Adminidsp123\";");
 
         mysqlDS.addSink(new FlinkKafkaProducer<String>(topicid,new SimpleStringSchema(), props,java.util.Optional.of(new MyPartitioner()))).name("flinkinsertkafka");
 
