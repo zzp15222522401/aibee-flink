@@ -1,14 +1,14 @@
 package com.aibee.flink.cdc;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
 import org.apache.kafka.clients.CommonClientConfigs;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
 
@@ -60,24 +60,65 @@ public class KafkaConsumerDemo {
         //每个Topic需要先在控制台进行创建。
         subscribedTopics.add(kafkaProperties.getProperty("topic"));
         consumer.subscribe(subscribedTopics);
+        // 获取topic的partition信息
+        List<PartitionInfo> partitionInfos = consumer.partitionsFor(kafkaProperties.getProperty("topic"));
+        List<TopicPartition> topicPartitions = new ArrayList<>();
 
-        //循环消费消息。
-        while (true){
-            try {
-                ConsumerRecords<String, String> records = consumer.poll(1000);
-                //必须在下次Poll之前消费完这些数据, 且总耗时不得超过SESSION_TIMEOUT_MS_CONFIG。
-                //建议开一个单独的线程池来消费消息，然后异步返回结果。
-                for (ConsumerRecord<String, String> record : records) {
-                    System.out.println(String.format("Consume partition:%d offset:%d value:%s", record.partition(), record.offset(),record.value()));
-                }
-            } catch (Exception e) {
-                try {
-                    Thread.sleep(1000);
-                } catch (Throwable ignore) {
+        Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date now = new Date();
+        long nowTime = now.getTime();
+        System.out.println("当前时间: " + df.format(now));
+        long fetchDataTime = nowTime - 1000 * 60 * 60;  // 计算30分钟之前的时间戳
 
-                }
-                e.printStackTrace();
+        for(PartitionInfo partitionInfo : partitionInfos) {
+            topicPartitions.add(new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
+            timestampsToSearch.put(new TopicPartition(partitionInfo.topic(), partitionInfo.partition()), fetchDataTime);
+        }
+        // 获取每个partition一个小时之前的偏移量
+        Map<TopicPartition, OffsetAndTimestamp> map = consumer.offsetsForTimes(timestampsToSearch);
+
+        OffsetAndTimestamp offsetTimestamp = null;
+        System.out.println("开始设置各分区初始偏移量...");
+        for(Map.Entry<TopicPartition, OffsetAndTimestamp> entry : map.entrySet()) {
+            // 如果设置的查询偏移量的时间点大于最大的索引记录时间，那么value就为空
+            offsetTimestamp = entry.getValue();
+            if(offsetTimestamp != null) {
+                int partition = entry.getKey().partition();
+                long timestamp = offsetTimestamp.timestamp();
+                long offset = offsetTimestamp.offset();
+                System.out.println("partition = " + partition +
+                        ", time = " + df.format(new Date(timestamp))+
+                        ", offset = " + offset);
+                // 设置读取消息的偏移量
+                consumer.seek(entry.getKey(), offset);
             }
         }
+        System.out.println("设置各分区初始偏移量结束...");
+
+        while(true) {
+            ConsumerRecords<String, String> records = consumer.poll(1000);
+            for (ConsumerRecord<String, String> record : records) {
+                System.out.println("partition = " + record.partition() + ", offset = " + record.offset() + "time" + df.format(record.timestamp()));
+            }
+        }
+//        //循环消费消息。
+//        while (true){
+//            try {
+//                ConsumerRecords<String, String> records = consumer.poll(1000);
+//                //必须在下次Poll之前消费完这些数据, 且总耗时不得超过SESSION_TIMEOUT_MS_CONFIG。
+//                //建议开一个单独的线程池来消费消息，然后异步返回结果。
+//                for (ConsumerRecord<String, String> record : records) {
+//                    System.out.println(String.format("Consume partition:%d offset:%d value:%s", record.partition(), record.offset(),record.value()));
+//                }
+//            } catch (Exception e) {
+//                try {
+//                    Thread.sleep(1000);
+//                } catch (Throwable ignore) {
+//
+//                }
+//                e.printStackTrace();
+//            }
+//        }
     }
 }
