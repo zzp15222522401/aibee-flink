@@ -22,7 +22,8 @@ import java.util.Properties;
 public class FlinkCDC {
 
     public static void main(String[] args) throws Exception {
-        ParameterTool parameterTool = ParameterTool.fromArgs(args);
+        ParameterTool parameterTool = ParameterTool.fromArgs(args);  Properties properties = new Properties();
+        properties.setProperty("bigint.unsigned.handling.mode","long");
         //mysql链接
         String hostname = parameterTool.get("hostname");
         String user =  parameterTool.get("user");
@@ -62,6 +63,7 @@ public class FlinkCDC {
                 .username(user)
                 .password(password)
                 .databaseList(databases)
+                .debeziumProperties(properties)
                 //可选配置项,注意：指定的时候需要使用"db.table"的方式
                 .tableList(tables)
                 .startupOptions(startupOptions)
