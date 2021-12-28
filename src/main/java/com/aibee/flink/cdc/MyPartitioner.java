@@ -17,7 +17,7 @@ public class MyPartitioner extends FlinkKafkaPartitioner {
         }
         String db = source.getString("db");
         String table = source.getString("table");
-        int part = Math.abs((db +  table).hashCode() % partitions.length);
+        int part = Math.abs((table + db ).hashCode() % partitions.length);
 //        System.out.println("part:"+part+"+size:"+partitions.length);
         return part;
     }
