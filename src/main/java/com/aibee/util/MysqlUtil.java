@@ -4,27 +4,30 @@ package com.aibee.util;
  * Created by Administrator on 2017/12/24.
  */
 
+import com.aibee.flink.cdc.FlinkCDC;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 public class MysqlUtil {
-//    private static Connection conn = null;
+    //    private static Connection conn = null;
 //    private static PreparedStatement preparedStatement = null;
 //    public static ResultSet resultSet = null;
 //    public static String driver = "com.mysql.jdbc.Driver";
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkCDC.class);
 
     /*
      * 主要用于提供查询返回 sink的分区数
      * */
-    public static HashMap getKafkaPartition(ParameterTool parameterTool) {
+    public static HashMap<String, String> getKafkaPartition(ParameterTool parameterTool) {
+        LOG.info("==============================GetKafkaPartition==============================");
         Connection conn = null;
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
-        String driver = "com.mysql.jdbc.Driver";
         HashMap<String, String> resultMap = new HashMap<>();
         //这里我的数据库是cgjr
         String host = parameterTool.get("conf_host");
@@ -32,7 +35,7 @@ public class MysqlUtil {
         String db = parameterTool.get("conf_db");
         String user = parameterTool.get("conf_user");
         String password = parameterTool.get("conf_password");
-        String topicName = parameterTool.get("topic_name");
+        String topicName = parameterTool.get("topicid");
         String url = "jdbc:mysql://" + host + ":" + port + "/" + db + "?useUnicode=true&characterEncoding=utf-8&useSSL=false";
         try {
             Class.forName("com.mysql.jdbc.Driver");
@@ -76,7 +79,6 @@ public class MysqlUtil {
         Connection conn = null;
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
-        String driver = "com.mysql.jdbc.Driver";
         HashMap<String, String> resultMap = new HashMap<>();
         //这里我的数据库是cgjr
         String host = parameterTool.get("conf_host");
@@ -84,14 +86,14 @@ public class MysqlUtil {
         String db = parameterTool.get("conf_db");
         String user = parameterTool.get("conf_user");
         String password = parameterTool.get("conf_password");
-        String topicName = parameterTool.get("topic_name");
-        String sinkDbTable = db.trim() + "." + dbTableName.trim();
+        String topicName = parameterTool.get("topicid");
+        String sinkDbTable = dbTableName;
         String url = "jdbc:mysql://" + host + ":" + port + "/" + db + "?useUnicode=true&characterEncoding=utf-8&useSSL=false";
         try {
             Class.forName("com.mysql.jdbc.Driver");
             conn = (Connection) DriverManager.getConnection(url, user, password);//第三个'/'代表 'localhost:3306/'\
             if (getKafkaPartition(parameterTool).get(sinkDbTable) == null) {
-                String sql = "INSERT INTO bi_bigdata_conf_prod.flink_cdc_kafka_partition_conf( db_table_name, kafka_partition,kafka_topic) values(?,?,?) ";
+                String sql = "INSERT INTO " + db + ".flink_cdc_kafka_partition_conf( db_table_name, kafka_partition,kafka_topic) values(?,?,?)";
                 preparedStatement = (PreparedStatement) conn.prepareStatement(sql);
                 preparedStatement.setString(1, sinkDbTable);
                 if (partitionNum > 1) {
@@ -116,7 +118,6 @@ public class MysqlUtil {
                 }
                 if (conn != null) {
                     conn.close();
-
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -127,11 +128,13 @@ public class MysqlUtil {
 
     /*
      * 根据分区数获取追加kafka分区号
+     * listOne:获取到表中已经存在分区
      * */
     public static String getKafkaNumberPartition(Object[] listOne, int partitionNum) {
         if (listOne.length >= partitionNum) {
             HashMap<String, Integer> map = new HashMap<>();
 
+            //wordcount 分区0 2,分区1次 排序取出次数最小一个
             for (Object key : listOne) {
                 if (map.containsKey(key)) {
                     map.put(key.toString(), map.get(key) + 1);
@@ -145,7 +148,6 @@ public class MysqlUtil {
             for (Object key : map.keySet()) {
                 if (map.get(key).equals(obj[0])) {
                     resultPartition = key.toString();
-                    System.out.println(resultPartition);
                     break;
                 }
             }
@@ -168,7 +170,29 @@ public class MysqlUtil {
 
             }
         }
+    }
 
+    /*
+     * 调用入口
+     * 根据传入的cdc表list动态匹配kafka分区号
+     * */
+    public static HashMap<String, Integer> getKafkaNumberPartition(ParameterTool parameterTool) {
+        String tables = parameterTool.get("tables");
+        int kafkaParitionNum = parameterTool.getInt("kafka_partition_num");
+        if (tables.split(",").length > 0) {
+            for (String dbTableName : tables.split(",")) {
+                insertPartitionInfo(parameterTool, dbTableName.trim(), kafkaParitionNum);
+            }
+        } else {
+            insertPartitionInfo(parameterTool, tables.trim(), kafkaParitionNum);
+        }
+        HashMap<String, Integer> stringIntegerHashMap = new HashMap<String, Integer>();
+        for (String s : getKafkaPartition(parameterTool).keySet()) {
+            if (getKafkaPartition(parameterTool).get(s) != null && s != null) {
+                stringIntegerHashMap.put(s, Integer.valueOf(getKafkaPartition(parameterTool).get(s)));
+            }
+        }
+        return stringIntegerHashMap;
     }
 
     public static void main(String[] args) {
@@ -183,10 +207,14 @@ public class MysqlUtil {
 //--conf_password
 //K2QyYE7M#hBj987B
         ParameterTool parameterTool = ParameterTool.fromArgs(args);
-        for (int i = 0; i <= 26; i++) {
-            insertPartitionInfo(parameterTool, "mall_bi_test.table" + i, 6);
-
-        }
-
+//        for (int i = 0; i <= 26; i++) {
+//            insertPartitionInfo(parameterTool, "mall_bi_test.table" + i, 6);
+//
+//        }
+//        HashMap<String, String> kafkaNumberPartition = getKafkaNumberPartition(parameterTool);
+//        for (String s : kafkaNumberPartition.keySet()) {
+//            System.out.println(s+"  "+ kafkaNumberPartition.get(s) );
+//        }
+//        getKafkaNumberPartition(parameterTool);
     }
 }
