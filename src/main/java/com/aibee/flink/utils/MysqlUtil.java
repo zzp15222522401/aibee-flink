@@ -1,4 +1,4 @@
-package com.aibee.util;
+package com.aibee.flink.utils;
 
 /**
  * Created by Administrator on 2017/12/24.

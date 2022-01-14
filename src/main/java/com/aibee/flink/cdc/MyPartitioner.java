@@ -33,7 +33,7 @@ public class MyPartitioner extends FlinkKafkaPartitioner {
 //        int partition = 0;
         int par = kafkaSinkNumberPartitionMap.get(db.trim() + "." + table.trim());
 
-        System.out.println("SinkTable:" + db + "." + table + "  SinkKafkaPartition:" + par);
+//        System.out.println("SinkTable:" + db + "." + table + "  SinkKafkaPartition:" + par);
         return par;
     }
 }
