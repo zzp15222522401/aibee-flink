@@ -75,6 +75,7 @@ public class MySQL2KafkaTask {
         String serverIdRange = params.getRequired("serverid");
         String kafkaTopic = params.getRequired("kafka.topic");
         String serverTimeZone = params.get("serverTimeZone", "Asia/Shanghai");
+        Boolean isDebug = params.getBoolean("is_debug", false);
         long checkpointInterval = params.getLong("checkpoint_interval", 60000L);
 
         int port = params.getInt("port");
@@ -89,6 +90,7 @@ public class MySQL2KafkaTask {
         Map<String, String> paramMap = params.toMap();
         Properties debeziumProperties = new Properties();
         Properties kafkaProperties = new Properties();
+        debeziumProperties.setProperty("bigint.unsigned.handling.mode","long");
         for (String key : paramMap.keySet()) {
             if (key.startsWith("debezium.")) {
                 String tmpKey = key.replaceFirst("debezium.", "");
@@ -100,7 +102,6 @@ public class MySQL2KafkaTask {
             }
         }
 
-//        properties.setProperty("bigint.unsigned.handling.mode","long");
 
         /**
          * 根据不同环境创建不同tableEnv
@@ -117,7 +118,7 @@ public class MySQL2KafkaTask {
 //            env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 //            env.getCheckpointConfig().setCheckpointTimeout(10000L);
-        env.getCheckpointConfig().setMaxConcurrentCheckpoints(params.getInt("max_checkpoint",1));
+        env.getCheckpointConfig().setMaxConcurrentCheckpoints(params.getInt("max_checkpoint", 1));
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(3000L);  //尾和头
 
         env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
@@ -145,16 +146,21 @@ public class MySQL2KafkaTask {
                 .build();
         DataStreamSource<String> mySQLSource = env
                 .fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "CDCSource");
-//        mySQLSource.print();
-        int sinkParallelism = params.getInt("sink_parallelism", env.getParallelism());
-        mySQLSource.setParallelism(sinkParallelism)
-                .addSink(new FlinkKafkaProducer<String>(
-                        kafkaTopic,
-                        new SimpleStringSchema(),
-                        kafkaProperties,
-                        Optional.of(new TableIdPartitioner(tablesPriMap)))).
-                name("KafkaSink")
-                .uid(kafkaTopic);
+        if (isDebug) {
+            mySQLSource.setParallelism(1).print();
+        }else {
+            int sinkParallelism = params.getInt("sink_parallelism", env.getParallelism());
+            mySQLSource.setParallelism(sinkParallelism)
+                    .addSink(new FlinkKafkaProducer<String>(
+                            kafkaTopic,
+                            new SimpleStringSchema(),
+                            kafkaProperties,
+                            Optional.of(new TableIdPartitioner(tablesPriMap)))).
+                    name("KafkaSink")
+                    .uid(kafkaTopic);
+        }
+//
+
 
 
 //        RowType physicalDataType =
