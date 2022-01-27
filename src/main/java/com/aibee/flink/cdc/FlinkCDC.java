@@ -2,6 +2,7 @@ package com.aibee.flink.cdc;
 
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
+import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -81,8 +82,9 @@ public class FlinkCDC {
                 //可选配置项,注意：指定的时候需要使用"db.table"的方式
                 .tableList(tables)
                 .startupOptions(startupOptions)
-                .serverId(serverId)
-                .deserializer(new JsonDebeziumDeserializationSchema(ifschema))
+//                .deserializer(new JsonDebeziumDeserializationSchema(ifschema))
+//                .deserializer(new StringDebeziumDeserializationSchema())
+                .deserializer((DebeziumDeserializationSchema) new StructDebeziumDeserializationSchema("UTC"))
                 .build();
 
 
