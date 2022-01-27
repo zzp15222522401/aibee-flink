@@ -1,9 +1,11 @@
 package com.aibee.flink.transfer;
 
+import com.aibee.flink.transfer.StructDebeziumDeserializationSchema;
 import com.aibee.flink.cdc.TableIdPartitioner;
 import com.aibee.flink.utils.MysqlUtil;
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
+import com.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -142,7 +144,7 @@ public class MySQL2KafkaTask {
                 .startupOptions(startupOptions)
                 .serverTimeZone(serverTimeZone)
                 .includeSchemaChanges(includeSchema)
-                .deserializer(new JsonDebeziumDeserializationSchema(includeSchema)) // converts SourceRecord to String
+                .deserializer((DebeziumDeserializationSchema) new StructDebeziumDeserializationSchema("UTC"))
                 .build();
         DataStreamSource<String> mySQLSource = env
                 .fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "CDCSource");
