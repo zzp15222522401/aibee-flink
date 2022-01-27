@@ -31,8 +31,9 @@ public class ClickHouseDynamicTableSink implements DynamicTableSink {
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+
         SerializationSchema<RowData> serializationSchema = encodingFormat.createRuntimeEncoder(context, dataType);
-        ClickHouseSinkFunction clickHouseSinkFunction = new ClickHouseSinkFunction(jdbcOptions, serializationSchema);
+        ClickHouseSinkFunction clickHouseSinkFunction = new ClickHouseSinkFunction(jdbcOptions, serializationSchema,dataType);
         return SinkFunctionProvider.of(clickHouseSinkFunction);
     }
 
